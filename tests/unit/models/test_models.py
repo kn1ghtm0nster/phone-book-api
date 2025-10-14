@@ -6,11 +6,6 @@ from phonebook.models import Contact, PhoneNumber
 pytestmark = pytest.mark.django_db
 
 
-@pytest.fixture(scope="session")
-def faker():
-    return Faker()
-
-
 def test_create_contact():
     c = Contact.objects.create(full_name="Bruce Schneier")
     p = PhoneNumber.objects.create(
