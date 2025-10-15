@@ -1,4 +1,6 @@
 from django.db import models
+from django.db.models.manager import Manager
+from typing import TYPE_CHECKING
 
 # Create your models here.
 
@@ -7,6 +9,9 @@ class Contact(models.Model):
     full_name = models.CharField(max_length=255, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    if TYPE_CHECKING:
+        phone_numbers: 'Manager["PhoneNumber"]'
 
     def __str__(self):
         return self.full_name
