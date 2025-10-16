@@ -1,5 +1,4 @@
 from django.db import models
-from django.db.models.manager import Manager
 from typing import TYPE_CHECKING
 
 # Create your models here.
@@ -11,7 +10,7 @@ class Contact(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     if TYPE_CHECKING:
-        phone_numbers: 'Manager["PhoneNumber"]'
+        phone_number: 'PhoneNumber | None'
 
     def __str__(self):
         return self.full_name
@@ -19,9 +18,8 @@ class Contact(models.Model):
 
 class PhoneNumber(models.Model):
     phone_number = models.CharField(max_length=50, unique=True)
-    contact = models.ForeignKey(
-        Contact, related_name='phone_numbers', on_delete=models.CASCADE)
-    is_primary = models.BooleanField(default=False)
+    contact = models.OneToOneField(
+        Contact, related_name='phone_number', on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

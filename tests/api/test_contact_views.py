@@ -23,8 +23,7 @@ class TestContactListAPI(APITestCase):
         c1 = Contact.objects.create(full_name="Bruce Schneier")
         PhoneNumber.objects.create(
             contact=c1,
-            phone_number='(703)111-2121',
-            is_primary=True
+            phone_number='(703)111-2121'
         )
 
         # no phone number for c2
@@ -37,13 +36,6 @@ class TestContactListAPI(APITestCase):
         PhoneNumber.objects.create(
             contact=c3,
             phone_number='1 (703) 123-1234',
-            is_primary=True
-        )
-
-        PhoneNumber.objects.create(
-            contact=c3,
-            phone_number='011 703 123 1234',
-            is_primary=False
         )
 
         response = self.client.get(self.url)

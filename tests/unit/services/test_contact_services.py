@@ -20,8 +20,7 @@ def test_retrieve_all_contacts():
     c1 = Contact.objects.create(full_name="Bruce Schneier")
     PhoneNumber.objects.create(
         contact=c1,
-        phone_number='(703)111-2121',
-        is_primary=True
+        phone_number='(703)111-2121'
     )
 
     # no phone number for c2
@@ -33,14 +32,7 @@ def test_retrieve_all_contacts():
 
     PhoneNumber.objects.create(
         contact=c3,
-        phone_number='1 (703) 123-1234',
-        is_primary=True
-    )
-
-    PhoneNumber.objects.create(
-        contact=c3,
-        phone_number='011 703 123 1234',
-        is_primary=False
+        phone_number='1 (703) 123-1234'
     )
 
     service = ContactService()
