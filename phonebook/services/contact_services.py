@@ -1,3 +1,5 @@
+from django.core.exceptions import ObjectDoesNotExist
+
 from phonebook.models import Contact, PhoneNumber
 
 
@@ -7,31 +9,48 @@ class ContactService:
     and their associated phone numbers.
     """
 
-    def create_new_contact(self, full_name: str, phone_numbers: list[str] | str) -> Contact:
+    def _check_name_exists(self, full_name: str) -> bool:
         """
-        creates a new contact with the given full name and phone number(s).
-        Phone numbers can be a single string or a list of strings.
+        Verifies if a contact with the given full name already exists.
+        Args:
+            full_name (str): The full name to check.
+        Returns:
+            bool: True if a contact with the given name exists, False otherwise.
+        """
+        return Contact.objects.filter(full_name=full_name).exists()
+
+    def _check_phone_number_exists(self, phone_number: str) -> bool:
+        """
+        Verifies if a phone number already exists in the database.
+        Args:
+            phone_number (str): The phone number to check.
+        Returns:
+            bool: True if the phone number exists, False otherwise.
+        """
+        return PhoneNumber.objects.filter(phone_number=phone_number).exists()
+
+    def create_new_contact(self, name: str, phone_number: str) -> dict[str, str]:
+        """
+        Creates a new contact and associates a phone number with it.
 
         Args:
-            full_name (str): The full name of the contact.
-            phone_numbers (list[str] | str): A single phone number or a list of phone numbers.
-
+            name (str): The full name of the contact.
+            phone_number (str): The phone number to associate with the contact.
         Returns:
-            Contact: The created Contact instance.
+            dict[str, str]: A dictionary containing the contact's name and phone number.
         """
-        if isinstance(phone_numbers, str):
-            phone_numbers = [phone_numbers]
 
-        contact = Contact.objects.create(full_name=full_name)
+        new_contact = Contact.objects.create(full_name=name)
 
-        for i, pn in enumerate(phone_numbers):
-            PhoneNumber.objects.create(
-                phone_number=pn,
-                contact=contact,
-                is_primary=(i == 0)  # First number is primary
-            )
+        PhoneNumber.objects.create(
+            phone_number=phone_number,
+            contact=new_contact
+        )
 
-        return contact
+        return {
+            'name': new_contact.full_name,
+            'phone_number': phone_number
+        }
 
     def retrieve_all_contacts(self) -> list[dict[str, str | None]]:
         """
@@ -40,15 +59,18 @@ class ContactService:
         Returns:
             list[dict[str, str | None]]: A list of dictionaries representing all contacts.
         """
-        contacts = Contact.objects.all().prefetch_related("phone_numbers")
+        qs = (
+            Contact.objects
+            .select_related("phone_number")
+            .only("full_name", "id", "phone_number__phone_number")
+        )
 
-        return [
-            {
-                "name": c.full_name,
-                "phone_number": next(
-                    (pn.phone_number for pn in c.phone_numbers.all() if pn.is_primary),
-                    None
-                )
-            }
-            for c in contacts
-        ]
+        results: list[dict[str, str | None]] = []
+        for c in qs:
+            try:
+                number_obj = c.phone_number  # reverse OneToOne; may not exist
+                number = number_obj.phone_number if number_obj else None
+            except ObjectDoesNotExist:
+                number = None
+            results.append({"name": c.full_name, "phone_number": number})
+        return results
