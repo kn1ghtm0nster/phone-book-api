@@ -23,8 +23,7 @@ class TestContactListAPI(APITestCase):
         c1 = Contact.objects.create(full_name="Bruce Schneier")
         PhoneNumber.objects.create(
             contact=c1,
-            phone_number='(703)111-2121',
-            is_primary=True
+            phone_number='(703)111-2121'
         )
 
         # no phone number for c2
@@ -37,13 +36,6 @@ class TestContactListAPI(APITestCase):
         PhoneNumber.objects.create(
             contact=c3,
             phone_number='1 (703) 123-1234',
-            is_primary=True
-        )
-
-        PhoneNumber.objects.create(
-            contact=c3,
-            phone_number='011 703 123 1234',
-            is_primary=False
         )
 
         response = self.client.get(self.url)
@@ -62,3 +54,163 @@ class TestContactListAPI(APITestCase):
                 "phone_number": "1 (703) 123-1234"
             }
         ]
+
+
+class TestContactCreateAPI(APITestCase):
+
+    def setUp(self):
+        self.url = reverse('contact-add')
+
+    def test_create_contact_success(self):
+        request_body = {
+            "name": "Alice Smith",
+            "phone_number": "(123) 456-7890"
+        }
+
+        response = self.client.post(self.url, data=request_body, format='json')
+
+        assert response.status_code == 201
+        assert response.json() == request_body
+
+    def test_create_contact_no_auth(self):
+        # TODO: Implement when auth is added
+        pass
+
+    def test_create_contact_no_permissions(self):
+        # TODO: Implement when permissions are added
+        pass
+
+    def test_create_contact_missing_name(self):
+        request_body = {
+            "phone_number": "(123) 456-7890"
+        }
+
+        response = self.client.post(self.url, data=request_body, format='json')
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "name": ["This field is required."]
+        }
+
+    def test_create_contact_missing_phone_number(self):
+        request_body = {
+            "name": "Alice Smith"
+        }
+
+        response = self.client.post(self.url, data=request_body, format='json')
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "phone_number": ["This field is required."]
+        }
+
+    def test_create_contact_empty_name(self):
+        request_body = {
+            "name": None,
+            "phone_number": "(123) 456-7890"
+        }
+
+        response = self.client.post(self.url, data=request_body, format='json')
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "name": ["This field may not be null."]
+        }
+
+    def test_create_contact_whitespace_name(self):
+        request_body = {
+            "name": "   ",
+            "phone_number": "(123) 456-7890"
+        }
+
+        response = self.client.post(self.url, data=request_body, format='json')
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "name": ["This field may not be blank."]
+        }
+
+    def test_create_contact_duplicate_name(self):
+        Contact.objects.create(full_name="Alice Smith")
+
+        request_body = {
+            "name": "Alice Smith",
+            "phone_number": "(123) 456-7890"
+        }
+
+        response = self.client.post(self.url, data=request_body, format='json')
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "name": ["A contact with this name already exists."]
+        }
+
+    def test_create_contact_invalid_name_xss(self):
+        request_body = {
+            "name": "<script>alert('XSS')</script>",
+            "phone_number": "(123) 456-7890"
+        }
+
+        response = self.client.post(self.url, data=request_body, format='json')
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "name": ["Invalid characters in name."]
+        }
+
+    def test_create_contact_sql_injection_name(self):
+        request_body = {
+            "name": "Alice'; DROP TABLE Contacts;--",
+            "phone_number": "(123) 456-7890"
+        }
+
+        response = self.client.post(self.url, data=request_body, format='json')
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "name": ["Invalid characters in name."]
+        }
+
+    def test_create_contact_duplicate_phone_number(self):
+        c = Contact.objects.create(full_name="Bob Jones")
+        PhoneNumber.objects.create(contact=c, phone_number="(123) 456-7890")
+
+        request_body = {
+            "name": "Alice Smith",
+            "phone_number": "(123) 456-7890"
+        }
+
+        response = self.client.post(self.url, data=request_body, format='json')
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "phone_number": [
+                "This phone number is already associated with another contact."
+            ]
+        }
+
+    def test_create_contact_invalid_phone_number_format(self):
+        request_body = {
+            "name": "Alice Smith",
+            "phone_number": "1234567890"
+        }
+
+        response = self.client.post(self.url, data=request_body, format='json')
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "phone_number": ["Invalid phone number format."]
+        }
+
+    def test_create_contact_xss_phone_number(self):
+        request_body = {
+            "name": "Alice Smith",
+            "phone_number": "<script>alert('XSS')</script>"
+        }
+
+        response = self.client.post(self.url, data=request_body, format='json')
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "phone_number": ["Invalid characters in phone number."]
+        }
