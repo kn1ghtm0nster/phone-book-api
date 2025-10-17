@@ -1,6 +1,6 @@
 import pytest
 
-from phonebook.api.utilities import valid_phone_number
+from phonebook.api.utilities import valid_phone_number, valid_name
 
 INVALID_NUMBERS = [
     '123',
@@ -24,6 +24,23 @@ VALID_NUMBERS = [
     '011 701 111 1234',
     '12345.12345',
     '011 1 703 111 1234'
+]
+
+VALID_NAMES = [
+    'Bruce Schneier',
+    'Schneier, Bruce',
+    'Schneier, Bruce Wayne',
+    "O'Malley, John F.",
+    'Cher',
+]
+
+INVALID_NAMES = [
+    "Ron O''Henry",
+    "Ron O'Henry-Smith-Barnes",
+    'L33t Hacker',
+    '<script>alert("xss")</script>',
+    'Brad Everett Samuel Smith',
+    'select * from users;'
 ]
 
 
@@ -64,3 +81,23 @@ def test_valid_phone_number_invalid_values():
 def test_valid_phone_number_valid_values():
     for num in VALID_NUMBERS:
         assert valid_phone_number(num)[1] is True
+
+
+def test_valid_name():
+    name = "John Doe"
+    assert valid_name(name) == ("John Doe", True)
+
+
+def test_valid_name_empty_string():
+    name = ""
+    assert valid_name(name) == ("Name cannot be empty or whitespace.", False)
+
+
+def test_valid_name_invalid_names():
+    for name in INVALID_NAMES:
+        assert valid_name(name)[1] is False
+
+
+def test_valid_name_valid_names():
+    for name in VALID_NAMES:
+        assert valid_name(name)[1] is True

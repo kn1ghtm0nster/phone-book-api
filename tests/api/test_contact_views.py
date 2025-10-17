@@ -145,6 +145,32 @@ class TestContactCreateAPI(APITestCase):
             "name": ["A contact with this name already exists."]
         }
 
+    def test_create_contact_invalid_name_xss(self):
+        request_body = {
+            "name": "<script>alert('XSS')</script>",
+            "phone_number": "(123) 456-7890"
+        }
+
+        response = self.client.post(self.url, data=request_body, format='json')
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "name": ["Invalid characters in name."]
+        }
+
+    def test_create_contact_sql_injection_name(self):
+        request_body = {
+            "name": "Alice'; DROP TABLE Contacts;--",
+            "phone_number": "(123) 456-7890"
+        }
+
+        response = self.client.post(self.url, data=request_body, format='json')
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "name": ["Invalid characters in name."]
+        }
+
     def test_create_contact_duplicate_phone_number(self):
         c = Contact.objects.create(full_name="Bob Jones")
         PhoneNumber.objects.create(contact=c, phone_number="(123) 456-7890")

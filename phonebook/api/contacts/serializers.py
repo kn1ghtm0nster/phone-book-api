@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from phonebook.services import ContactService
-from phonebook.api.utilities import valid_phone_number
+from phonebook.api.utilities import valid_phone_number, valid_name
 
 
 class ContactListOutputSerializer(serializers.Serializer):
@@ -14,15 +14,15 @@ class CreateContactInputSerializer(serializers.Serializer):
     phone_number = serializers.CharField(required=True, max_length=50)
 
     def validate_name(self, value: str) -> str:
-        cleaned_value = value.strip()
-        if not cleaned_value:
-            raise serializers.ValidationError(
-                "Name cannot be empty or whitespace.")
+        # ensure name matches accepted patterns per specs
+        result, is_valid = valid_name(value)
+        if not is_valid:
+            raise serializers.ValidationError(result)
 
-        if ContactService()._check_name_exists(cleaned_value):
+        if ContactService()._check_name_exists(result):
             raise serializers.ValidationError(
                 "A contact with this name already exists.")
-        return cleaned_value
+        return result
 
     def validate_phone_number(self, value: str) -> str:
         # ensure phone number matches accepted patterns per specs
