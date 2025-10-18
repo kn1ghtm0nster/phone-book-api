@@ -9,6 +9,10 @@ from .serializers import (
     CreateContactInputSerializer,
 )
 from phonebook.services import ContactService
+from config.authentication import (
+    IsWriter,
+    IsReaderOrWriter
+)
 
 
 class ContactListAPI(APIView):
@@ -16,7 +20,7 @@ class ContactListAPI(APIView):
     API view to list all contacts.
     """
 
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated, IsReaderOrWriter]
 
     def get(self, request: Request) -> Response:
         service = ContactService()
@@ -30,7 +34,7 @@ class ContactCreateAPI(APIView):
     API view to create a new contact.
     """
 
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated, IsWriter]
 
     def post(self, request: Request):
         serializer = CreateContactInputSerializer(data=request.data)
