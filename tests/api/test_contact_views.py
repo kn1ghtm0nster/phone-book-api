@@ -1,23 +1,37 @@
 import pytest
 from django.urls import reverse
-from rest_framework.test import APITestCase
+from rest_framework.test import APITestCase, APIClient
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 
 from phonebook.models import Contact, PhoneNumber
 
 pytestmark = pytest.mark.django_db
 
-# TODO: Update tests when Authentication and Permissions are added
-
 
 class TestContactListAPI(APITestCase):
 
+    @classmethod
+    def setUpTestData(cls):
+        User = get_user_model()
+
+        # create groups if they do not exist
+        cls.reader_group, _ = Group.objects.get_or_create(name='reader')
+        cls.reader = User.objects.create_user(
+            username='reader_user1',
+            password='readerpass123'
+        )
+        cls.reader.groups.add(cls.reader_group)
+
     def setUp(self):
         self.url = reverse('contact-list')
+        self.api_client: APIClient = APIClient()
+        self.api_client.force_authenticate(user=self.reader)
 
     def test_get_contacts(self):
-        response = self.client.get(self.url)
-        assert response.status_code == 200
-        assert response.json() == []  # Expecting an empty list initially
+        response = self.api_client.get(self.url)
+        assert response.status_code == 200  # type: ignore
+        assert response.data == []  # Expecting an empty list initially #type:ignore
 
     def test_get_contacts_with_existing_data(self):
         c1 = Contact.objects.create(full_name="Bruce Schneier")
@@ -38,9 +52,9 @@ class TestContactListAPI(APITestCase):
             phone_number='1 (703) 123-1234',
         )
 
-        response = self.client.get(self.url)
-        assert response.status_code == 200
-        assert response.json() == [
+        response = self.api_client.get(self.url)
+        assert response.status_code == 200  # type: ignore
+        assert response.json() == [  # type: ignore
             {
                 "name": "Bruce Schneier",
                 "phone_number": "(703)111-2121"
@@ -55,11 +69,35 @@ class TestContactListAPI(APITestCase):
             }
         ]
 
+    def test_get_contacts_no_auth(self):
+        client = APIClient()  # unauthenticated client
+        response = client.get(self.url)
+        assert response.status_code == 401  # Unauthorized #type: ignore
+
 
 class TestContactCreateAPI(APITestCase):
 
+    @classmethod
+    def setUpTestData(cls):
+        User = get_user_model()
+        cls.writer_group, _ = Group.objects.get_or_create(name='writer')
+        cls.writer = User.objects.create_user(
+            username='writer_user1',
+            password='writerpass123'
+        )
+        cls.writer.groups.add(cls.writer_group)
+
+        cls.reader_group, _ = Group.objects.get_or_create(name='reader')
+        cls.reader = User.objects.create_user(
+            username='reader_user1',
+            password='readerpass123'
+        )
+        cls.reader.groups.add(cls.reader_group)
+
     def setUp(self):
         self.url = reverse('contact-add')
+        self.api_client: APIClient = APIClient()
+        self.client = self.api_client
 
     def test_create_contact_success(self):
         request_body = {
@@ -67,24 +105,37 @@ class TestContactCreateAPI(APITestCase):
             "phone_number": "(123) 456-7890"
         }
 
+        self.client.force_authenticate(user=self.writer)  # type: ignore
         response = self.client.post(self.url, data=request_body, format='json')
 
         assert response.status_code == 201
         assert response.json() == request_body
 
     def test_create_contact_no_auth(self):
-        # TODO: Implement when auth is added
-        pass
+        client = APIClient()
+        request_body = {
+            "name": "Alice Smith",
+            "phone_number": "(123) 456-7890"
+        }
+
+        response = client.post(self.url, data=request_body, format='json')
+        assert response.status_code == 401  # type: ignore
 
     def test_create_contact_no_permissions(self):
-        # TODO: Implement when permissions are added
-        pass
+        request_body = {
+            "name": "Alice Smith",
+            "phone_number": "(123) 456-7890"
+        }
+
+        response = self.client.post(self.url, data=request_body, format='json')
+        assert response.status_code == 403  # type: ignore
 
     def test_create_contact_missing_name(self):
         request_body = {
             "phone_number": "(123) 456-7890"
         }
 
+        self.client.force_authenticate(user=self.writer)  # type: ignore
         response = self.client.post(self.url, data=request_body, format='json')
 
         assert response.status_code == 400
@@ -97,6 +148,7 @@ class TestContactCreateAPI(APITestCase):
             "name": "Alice Smith"
         }
 
+        self.client.force_authenticate(user=self.writer)  # type: ignore
         response = self.client.post(self.url, data=request_body, format='json')
 
         assert response.status_code == 400
@@ -110,6 +162,7 @@ class TestContactCreateAPI(APITestCase):
             "phone_number": "(123) 456-7890"
         }
 
+        self.client.force_authenticate(user=self.writer)  # type: ignore
         response = self.client.post(self.url, data=request_body, format='json')
 
         assert response.status_code == 400
@@ -123,6 +176,7 @@ class TestContactCreateAPI(APITestCase):
             "phone_number": "(123) 456-7890"
         }
 
+        self.client.force_authenticate(user=self.writer)  # type: ignore
         response = self.client.post(self.url, data=request_body, format='json')
 
         assert response.status_code == 400
@@ -138,6 +192,7 @@ class TestContactCreateAPI(APITestCase):
             "phone_number": "(123) 456-7890"
         }
 
+        self.client.force_authenticate(user=self.writer)  # type: ignore
         response = self.client.post(self.url, data=request_body, format='json')
 
         assert response.status_code == 400
@@ -151,6 +206,7 @@ class TestContactCreateAPI(APITestCase):
             "phone_number": "(123) 456-7890"
         }
 
+        self.client.force_authenticate(user=self.writer)  # type: ignore
         response = self.client.post(self.url, data=request_body, format='json')
 
         assert response.status_code == 400
@@ -164,6 +220,7 @@ class TestContactCreateAPI(APITestCase):
             "phone_number": "(123) 456-7890"
         }
 
+        self.client.force_authenticate(user=self.writer)  # type: ignore
         response = self.client.post(self.url, data=request_body, format='json')
 
         assert response.status_code == 400
@@ -180,6 +237,7 @@ class TestContactCreateAPI(APITestCase):
             "phone_number": "(123) 456-7890"
         }
 
+        self.client.force_authenticate(user=self.writer)  # type: ignore
         response = self.client.post(self.url, data=request_body, format='json')
 
         assert response.status_code == 400
@@ -195,6 +253,7 @@ class TestContactCreateAPI(APITestCase):
             "phone_number": "1234567890"
         }
 
+        self.client.force_authenticate(user=self.writer)  # type: ignore
         response = self.client.post(self.url, data=request_body, format='json')
 
         assert response.status_code == 400
@@ -208,6 +267,7 @@ class TestContactCreateAPI(APITestCase):
             "phone_number": "<script>alert('XSS')</script>"
         }
 
+        self.client.force_authenticate(user=self.writer)  # type: ignore
         response = self.client.post(self.url, data=request_body, format='json')
 
         assert response.status_code == 400
