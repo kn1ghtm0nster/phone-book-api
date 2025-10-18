@@ -127,6 +127,7 @@ class TestContactCreateAPI(APITestCase):
             "phone_number": "(123) 456-7890"
         }
 
+        self.client.force_authenticate(user=self.reader)  # type: ignore
         response = self.client.post(self.url, data=request_body, format='json')
         assert response.status_code == 403  # type: ignore
 
