@@ -29,4 +29,5 @@ urlpatterns = [
          name='token_obtain_pair'),
     path('phone-book/auth/token/refresh/',
          TokenRefreshView.as_view(), name='token_refresh'),
+    path('phone-book/signup/', include('phonebook.api.signup.urls')),
 ]

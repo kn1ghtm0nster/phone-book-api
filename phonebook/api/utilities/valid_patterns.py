@@ -30,3 +30,8 @@ PHONE_PATTERNS = [
     #    12345 12345, 12345.12345
     re.compile(r"^\d{5}[ .]\d{5}$"),
 ]
+
+ATTACKER_REGEX = re.compile(
+    r"\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|EXEC|UNION)\b|--|;",
+    re.IGNORECASE,
+)
