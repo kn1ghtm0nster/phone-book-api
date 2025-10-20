@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from typing import Any, cast
 
 from phonebook.api.utilities import valid_name
+from phonebook.api.utilities.valid_patterns import ATTACKER_REGEX
 
 
 class SignUpSerializerInput(serializers.Serializer):
@@ -67,6 +68,13 @@ class SignUpSerializerInput(serializers.Serializer):
             raise serializers.ValidationError(
                 {
                     "password": ["Invalid characters in password."]
+                }
+            )
+
+        if ATTACKER_REGEX.search(cast(str, pwd)):
+            raise serializers.ValidationError(
+                {
+                    "password": ["Invalid password."]
                 }
             )
 
