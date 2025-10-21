@@ -7,6 +7,7 @@ from typing import cast
 from .serializers import (
     ContactListOutputSerializer,
     CreateContactInputSerializer,
+    DeleteContactInputSerializer,
 )
 from phonebook.services import ContactService
 from config.authentication import (
@@ -49,3 +50,29 @@ class ContactCreateAPI(APIView):
 
         serializer = ContactListOutputSerializer(new_contact)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class ContactDeleteAPI(APIView):
+    """
+    API view to delete a contact by name or phone number.
+    """
+
+    permission_classes = [permissions.IsAuthenticated, IsWriter]
+
+    def delete(self, request: Request) -> Response:
+        name = request.query_params.get('name', None)
+        phone_number = request.query_params.get('phone_number', None)
+
+        serializer = DeleteContactInputSerializer(data={
+            'name': name,
+            'phone_number': phone_number
+        })
+
+        serializer.is_valid(raise_exception=True)
+        data = cast(dict, serializer.validated_data)
+
+        service = ContactService()
+        service.delete_contact(name=data.get(
+            'name'), phone_number=data.get('phone_number'))
+
+        return Response(status=status.HTTP_200_OK, data={'message': 'Contact deleted.'})
