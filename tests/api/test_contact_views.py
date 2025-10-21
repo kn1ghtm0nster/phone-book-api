@@ -275,3 +275,178 @@ class TestContactCreateAPI(APITestCase):
         assert response.json() == {
             "phone_number": ["Invalid characters in phone number."]
         }
+
+
+class TestContactDeleteAPI(APITestCase):
+
+    @classmethod
+    def setUpTestData(cls):
+        User = get_user_model()
+        cls.writer_group, _ = Group.objects.get_or_create(name='writer')
+        cls.writer = User.objects.create_user(
+            username='writer_user1',
+            password='writerpass123'
+        )
+        cls.writer.groups.add(cls.writer_group)
+
+        cls.reader_group, _ = Group.objects.get_or_create(name='reader')
+        cls.reader = User.objects.create_user(
+            username='reader_user1',
+            password='readerpass123'
+        )
+        cls.reader.groups.add(cls.reader_group)
+
+    def setUp(self):
+        self.url = reverse('contact-delete')
+        self.api_client: APIClient = APIClient()
+        self.client = self.api_client
+
+    def test_delete_contact_by_name_success(self):
+        c = Contact.objects.create(full_name="Alice Smith")
+        PhoneNumber.objects.create(contact=c, phone_number="(123) 456-7890")
+
+        self.client.force_authenticate(user=self.writer)  # type: ignore
+        response = self.client.delete(
+            self.url,
+            QUERY_STRING='name=Alice%20Smith',
+            format='json'
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {'message': 'Contact deleted.'}
+
+        # Verify contact is deleted
+        assert Contact.objects.filter(full_name="Alice Smith").count() == 0
+        assert PhoneNumber.objects.filter(
+            phone_number="(123) 456-7890").count() == 0
+
+    def test_delete_contact_by_phone_number_success(self):
+        c = Contact.objects.create(full_name="Bob Jones")
+        PhoneNumber.objects.create(contact=c, phone_number="(987) 654-3210")
+
+        self.client.force_authenticate(user=self.writer)  # type: ignore
+        response = self.client.delete(
+            self.url,
+            QUERY_STRING='phone_number=(987)%20654-3210',
+            format='json'
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {'message': 'Contact deleted.'}
+
+        # Verify contact is deleted
+        assert Contact.objects.filter(full_name="Bob Jones").count() == 0
+        assert PhoneNumber.objects.filter(
+            phone_number="(987) 654-3210").count() == 0
+
+    def test_delete_contact_no_auth(self):
+        client = APIClient()
+        response = client.delete(
+            self.url,
+            QUERY_STRING='name=Alice%20Smith',
+            format='json'
+        )
+        assert response.status_code == 401  # type: ignore
+
+    def test_delete_contact_no_permissions(self):
+        self.client.force_authenticate(user=self.reader)  # type: ignore
+        response = self.client.delete(
+            self.url,
+            QUERY_STRING='name=Alice%20Smith',
+            format='json'
+        )
+        assert response.status_code == 403  # type: ignore
+
+    def test_delete_contact_missing_parameters(self):
+        self.client.force_authenticate(user=self.writer)  # type: ignore
+        response = self.client.delete(
+            self.url,
+            format='json'
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "non_field_errors": [
+                "Either 'name' or 'phone_number' must be provided for deletion."
+            ]
+        }
+
+    def test_delete_contact_nonexistent_name(self):
+        self.client.force_authenticate(user=self.writer)  # type: ignore
+        response = self.client.delete(
+            self.url,
+            QUERY_STRING='name=Nonexistent%20Name',
+            format='json'
+        )
+
+        assert response.status_code == 404  # type: ignore
+
+    def test_delete_contact_nonexistent_phone_number(self):
+        self.client.force_authenticate(user=self.writer)  # type: ignore
+        response = self.client.delete(
+            self.url,
+            QUERY_STRING='phone_number=(000)%20000-0000',
+            format='json'
+        )
+
+        assert response.status_code == 404  # type: ignore
+
+    def test_delete_contact_sql_injection_name(self):
+        self.client.force_authenticate(user=self.writer)  # type: ignore
+        response = self.client.delete(
+            self.url,
+            QUERY_STRING="name=Robert');%20DROP%20TABLE%20Contacts;--",
+            format='json'
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "non_field_errors": [
+                "Invalid name."
+            ]
+        }
+
+    def test_delete_contact_sql_injection_phone_number(self):
+        self.client.force_authenticate(user=self.writer)  # type: ignore
+        response = self.client.delete(
+            self.url,
+            QUERY_STRING="phone_number=123-456-7890');%20DROP%20TABLE%20PhoneNumbers;--",
+            format='json'
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "non_field_errors": [
+                "Invalid phone number."
+            ]
+        }
+
+    def test_delete_contact_xss_name(self):
+        self.client.force_authenticate(user=self.writer)  # type: ignore
+        response = self.client.delete(
+            self.url,
+            QUERY_STRING="name=<script>alert('XSS')</script>",
+            format='json'
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "non_field_errors": [
+                "Invalid name."
+            ]
+        }
+
+    def test_delete_contact_xss_phone_number(self):
+        self.client.force_authenticate(user=self.writer)  # type: ignore
+        response = self.client.delete(
+            self.url,
+            QUERY_STRING="phone_number=<script>alert('XSS')</script>",
+            format='json'
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "non_field_errors": [
+                "Invalid phone number."
+            ]
+        }
