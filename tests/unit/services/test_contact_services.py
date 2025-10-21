@@ -96,3 +96,60 @@ def test_create_new_contact_one_to_one_enforced():
     c = Contact.objects.get(full_name="Cher")
     # Exactly one phone number for this contact (one-to-one)
     assert PhoneNumber.objects.filter(contact=c).count() == 1
+
+
+def test_delete_contact_works(create_contact):
+    existing_contact = create_contact(
+        full_name="Bruce Schneier", phone_number="(703)111-2121")
+
+    svc = ContactService()
+    svc.delete_contact(name="Bruce Schneier")
+
+    assert Contact.objects.filter(id=existing_contact.id).count() == 0
+    assert PhoneNumber.objects.filter(contact=existing_contact).count() == 0
+
+
+def test_delete_contact_by_name(create_contact):
+    existing_contact = create_contact(
+        full_name="Bruce Schneier", phone_number="(703)111-2121")
+
+    svc = ContactService()
+    svc.delete_contact(name="Bruce Schneier")
+
+    assert Contact.objects.filter(id=existing_contact.id).count() == 0
+    assert PhoneNumber.objects.filter(contact=existing_contact).count() == 0
+
+
+def test_delete_contact_by_phone_number(create_contact):
+    existing_contact = create_contact(
+        full_name="Bruce Schneier", phone_number="(703)111-2121")
+
+    svc = ContactService()
+    svc.delete_contact(phone_number="(703)111-2121")
+
+    assert Contact.objects.filter(id=existing_contact.id).count() == 0
+    assert PhoneNumber.objects.filter(contact=existing_contact).count() == 0
+
+
+def test_delete_contact_name_and_phone_number(create_contact):
+    existing_contact = create_contact(
+        full_name="Bruce Schneier", phone_number="(703)111-2121")
+
+    svc = ContactService()
+    svc.delete_contact(name="Bruce Schneier",
+                       phone_number="(703)111-2121")
+
+    assert Contact.objects.filter(id=existing_contact.id).count() == 0
+    assert PhoneNumber.objects.filter(contact=existing_contact).count() == 0
+
+
+def test_delete_contact_raises_for_missing_args():
+    svc = ContactService()
+    with pytest.raises(ValueError):
+        svc.delete_contact()
+
+
+def test_delete_contact_raises_for_nonexistent_contact():
+    svc = ContactService()
+    with pytest.raises(Exception):
+        svc.delete_contact(name="Non Existent")

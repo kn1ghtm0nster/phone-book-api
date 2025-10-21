@@ -1,9 +1,11 @@
 import pytest
 from rest_framework import serializers
+from typing import cast
 
 from phonebook.api.contacts.serializers import (
     ContactListOutputSerializer,
-    CreateContactInputSerializer
+    CreateContactInputSerializer,
+    DeleteContactInputSerializer,
 )
 
 pytestmark = pytest.mark.django_db
@@ -163,3 +165,72 @@ class TestCreateContactInputSerializer:
 
         detail = exc.value.detail
         assert "phone_number" in detail
+
+
+class TestDeleteContactInputSerializer:
+
+    def test_delete_contact_input_serializer_works(self):
+        data = {
+            "name": "Cher",
+            "phone_number": '(123) 456-7890'
+        }
+
+        serializer = DeleteContactInputSerializer(data=data)
+
+        assert serializer.is_valid()
+        assert serializer.validated_data == {
+            "name": "Cher",
+            "phone_number": '(123) 456-7890'
+        }
+
+    def test_delete_contact_input_serializer_raises_for_missing_args(self):
+        data = {}
+
+        serializer = DeleteContactInputSerializer(data=data)
+
+        with pytest.raises(serializers.ValidationError) as exc:
+            serializer.is_valid(raise_exception=True)
+
+        detail = exc.value.detail
+
+    def test_delete_contact_input_serializer_raises_for_script(self):
+        data = {
+            "name": "<script>alert(1)</script>"
+        }
+
+        serializer = DeleteContactInputSerializer(data=data)
+
+        with pytest.raises(serializers.ValidationError) as exc:
+            serializer.is_valid(raise_exception=True)
+
+        detail = exc.value.detail
+        assert 'Invalid name.' in detail['non_field_errors']  # type: ignore
+
+    def test_delete_contact_input_serializer_sql_injection_name(self):
+        data = {
+            'name': "Robert'); DROP TABLE Contacts;--",
+            'phone': '(123)456-7890'
+        }
+
+        serializer = DeleteContactInputSerializer(data=data)
+
+        with pytest.raises(serializers.ValidationError) as exc:
+            serializer.is_valid(raise_exception=True)
+
+        detail = exc.value.detail
+        assert 'Invalid name.' in detail['non_field_errors']  # type: ignore
+
+    def test_delete_contact_input_serializer_sql_injection_phone(self):
+        data = {
+            'name': "Alice",
+            'phone_number': "123-456-7890'); DROP TABLE PhoneNumbers;--"
+        }
+
+        serializer = DeleteContactInputSerializer(data=data)
+
+        with pytest.raises(serializers.ValidationError) as exc:
+            serializer.is_valid(raise_exception=True)
+
+        detail = cast(dict, exc.value.detail)
+
+        assert 'Invalid phone number.' in detail['non_field_errors']

@@ -1,4 +1,5 @@
 from django.core.exceptions import ObjectDoesNotExist
+from django.shortcuts import get_object_or_404
 
 from phonebook.models import Contact, PhoneNumber
 
@@ -74,3 +75,24 @@ class ContactService:
                 number = None
             results.append({"name": c.full_name, "phone_number": number})
         return results
+
+    def delete_contact(self, name: str | None = None, phone_number: str | None = None) -> None:
+        """
+        Deletes a contact based on the provided name or phone number.
+
+        - If both are provided, name takes precedence.
+        - Raises Http404 if the target record does not exist.
+        - Raises ValueError if neither identifier is provided.
+        """
+        if name:
+            contact = get_object_or_404(Contact, full_name=name)
+            contact.delete()
+            return
+
+        if phone_number:
+            pn = get_object_or_404(PhoneNumber, phone_number=phone_number)
+            # One-to-one; deleting the contact will cascade-delete the phone record
+            pn.contact.delete()
+            return
+
+        raise ValueError("Either 'name' or 'phone_number' must be provided.")
