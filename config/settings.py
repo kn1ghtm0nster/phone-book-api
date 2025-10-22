@@ -152,33 +152,63 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Logging directory
+LOG_DIR = BASE_DIR / 'phonebook' / 'logging'
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
 # Logging configuration
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "structlog": {
+        "console_formatter": {
             "()": structlog.stdlib.ProcessorFormatter,
-            "processor": structlog.processors.JSONRenderer(),
+            "processor": structlog.dev.ConsoleRenderer(colors=True),
             "foreign_pre_chain": [
-                structlog.processors.TimeStamper(fmt="iso"),
+                structlog.processors.TimeStamper(fmt="iso", utc=True),
                 structlog.stdlib.add_log_level,
+                structlog.stdlib.add_logger_name,
             ],
         },
+        'json_log': {
+            '()': structlog.stdlib.ProcessorFormatter,
+            'processor': structlog.processors.JSONRenderer(),
+            'foreign_pre_chain': [
+                structlog.processors.TimeStamper(fmt="iso", utc=True),
+                structlog.stdlib.add_log_level,
+                structlog.stdlib.add_logger_name,
+            ],
+        }
     },
     "handlers": {
-        "console": {"class": "logging.StreamHandler", "formatter": "structlog"},
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "console_formatter"
+        },
+        "json_log_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "formatter": "json_log",
+            "filename": LOG_DIR / "log.json",
+            "maxBytes": 20 * 1024 * 1024,  # 20 MB
+            "backupCount": 7,
+            "encoding": "utf8",
+        }
     },
     "root": {
-        "handlers": ["console"],
+        "handlers": ["console", "json_log_file"],
         "level": env("LOG_LEVEL"),
     },
     "loggers": {
         "django.request": {
-            "handlers": ["console"],
+            "handlers": ["console", "json_log_file"],
             "level": env("LOG_LEVEL"),
             "propagate": False,
         },
+        "phonebook.services": {
+            "handlers": ["console", "json_log_file"],
+            "level": env("LOG_LEVEL"),
+            "propagate": False,
+        }
     },
 }
 structlog.configure(
@@ -186,7 +216,7 @@ structlog.configure(
         structlog.stdlib.filter_by_level,
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
-        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.TimeStamper(fmt="iso", utc=True),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),

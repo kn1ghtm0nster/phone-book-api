@@ -15,3 +15,17 @@ DATABASES = {
 LOGGING["root"]["level"] = "CRITICAL"
 for k in LOGGING.get("loggers", {}):
     LOGGING["loggers"][k]["level"] = "CRITICAL"
+
+
+# Disable logging during tests (no console, no files)
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": True,
+    "handlers": {
+        "null": {"class": "logging.NullHandler"},
+    },
+    "root": {
+        "handlers": ["null"],
+        "level": "CRITICAL",
+    },
+}
