@@ -1,7 +1,10 @@
+import structlog
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import get_object_or_404
 
 from phonebook.models import Contact, PhoneNumber
+
+logger = structlog.get_logger(__name__)
 
 
 class ContactService:
@@ -48,6 +51,9 @@ class ContactService:
             contact=new_contact
         )
 
+        logger.info('contact_service.created',
+                    contact_name=new_contact.full_name)
+
         return {
             'name': new_contact.full_name,
             'phone_number': phone_number
@@ -74,6 +80,9 @@ class ContactService:
             except ObjectDoesNotExist:
                 number = None
             results.append({"name": c.full_name, "phone_number": number})
+
+        logger.info('contact_service.retrieve_all', count=len(results))
+
         return results
 
     def delete_contact(self, name: str | None = None, phone_number: str | None = None) -> None:
@@ -87,12 +96,15 @@ class ContactService:
         if name:
             contact = get_object_or_404(Contact, full_name=name)
             contact.delete()
+            logger.info('contact_service.deleted', contact_name=name)
             return
 
         if phone_number:
             pn = get_object_or_404(PhoneNumber, phone_number=phone_number)
             # One-to-one; deleting the contact will cascade-delete the phone record
             pn.contact.delete()
+            logger.info('contact_service.deleted',
+                        contact_name=pn.contact.full_name)
             return
 
         raise ValueError("Either 'name' or 'phone_number' must be provided.")
